@@ -1,6 +1,6 @@
 # Introduction
 
-This is a compiled summary of the Rakinda Doorlock API and SDK.
+This is a compiled summary of the Rakinda Doorlock API and SDK. The endpoints are defined by the user.
 
 ## Contents
 
@@ -9,14 +9,18 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
 - [Summary](#summary)
 - [Events](#events)
 - [Java SDK](#sdk)
+- [Todo](#todo)
 
 ## Summary
 
-> The controller submits a Http request to the server after swiping the card or scan QR Code, and then the server answers, finally the controller operates the action. If offline, the device can deal it by itself. It can validate QR code or IC card or ID card, if it is valid, the door will open. When online, the server will validate the information. When it has no access to internet, offline QR code can also open the door. Surely the QR code should comply with the principles of opening the door. After connecting to the internet, the records of opening the door will be uploaded automatically. If the times of opening the door should be recorded, this information will also be uploaded after connecting to the internet. This is to say if some QR code can only open the door once, after online opening, when in offline condition later, this QR code could not open the door anymore.
+> The controller submits a Http request to the server after swiping the card or scan QR Code, and then the server answers, finally the controller operates the action. If offline, the device can deal it by itself. It can validate QR code or IC card or ID card, if it is valid, the door will open. When online, the server will validate the information. When it has no access to internet, offline QR code can also open the door.
+> The smartlock
 
 ## Events
 
 ### `POST` Request Opening
+
+When the guest opens the door the doorlock will send a post requets to the backend server.
 
 `Request Data`
 
@@ -41,7 +45,7 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
   **4** Bluetooth data
 
 - **SCode**: _the data of the upload type above_
-- **DeviceID**：_MAC address code of the device, 12 length_
+- **DeviceID**：_MAC address code of the doorlock_
 - **ReaderNo**: _When the device has multiple input peripherals, such as IC reader 1, 2; 2D code reader 1, 2; then 1 means enter and 2 means exit;_
 - **ActIndex**: _The relay position of act; it refers to act which reply; generally it is 1, 2; if two relays act at the same time, the value is 3._
 - **ProjectNo**: _If not use, this field is null_
@@ -51,6 +55,8 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
 </p>
 
 `Response Data`
+
+The response data from the server.
 
 ```javascript
 {
@@ -85,7 +91,7 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
   > 171023121439//yymmddhhmmss
   > 01 //Event number（01 "Remote open door"）
   > 00 //Reader number is 00 \_
-- **DeviceID**：_MAC address code of the device, 12 length_
+- **DeviceID**：_MAC address code of the doorlock_
 - **ReaderNo**: _When the device has multiple input peripherals, such as IC reader 1, 2; 2D code reader 1, 2; then 1 means enter and 2 means exit;_
 - **ActIndex**: _The relay position of act; it refers to act which reply; generally it is 1, 2; if two relays act at the same time, the value is 3._
 - **ProjectNo**: _If not use, this field is null_
@@ -105,6 +111,8 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
 ```
 
 ### `POST` Heartbeat
+
+Sends a post request at regular time intervals.
 
 `Request Data`
 
@@ -149,83 +157,7 @@ This is a compiled summary of the Rakinda Doorlock API and SDK.
 
 The SDK is for remote QR code generation.
 
-## How it works
-
-Two-dimensional code rules are composed of seven parts, the first four parts are plaintext, the last three parts of the string through the XXTEA encryption
-
-1. User-defined Data，n bits
-   User-defined data that does not contain the symbol "|", because it is an identifier that separates user data from other data. User data refers to additional data added by users, such as name, position, etc
-
-2. Two dimensional code number（8bits）
-   After the two-dimensional code has opened the door, a record will be generated, Record contains the two dimensional code number number. if enable the timers limit , and the two dimensional code number is incremented by 1 ,and ensure that the two dimensional code number is incremented without repetition
-3. Encryption length (2 bits) and encryption length remainder(2bits）
-   Note:
-
-1) Encryption length, refers to the encryption string every 8 bits, then the encryption length is 1 ,16 bits, then the encryption length is 2 , 18 bits, then the encryption length is 3  
-   2)The remainder of the encryption length is last 2-6 bits character.
-   If the remaining 2 bits, the remainder is ‘01’, If the remaining 4 bits, the remainder is ‘02’, If the remaining 6 bits, the remainder is ‘03’, If there is no residue, the remainder is ‘00’.
-
-4. user secret key（UserKey2），4bytes
-   From Sector 5-7 are encrypted using the XXTEA encryption method. The length of the XXTEA encryption key is 256 bits (32 bytes).The encryption key consists of the device key (UserKey1) and the user key (UserKey2). The device key (UserKey1) defaults to 0x00543210, and the user key (UserKey2) is defined by user-define. unsigned int key[4] = { UserKey2, UserKey1, UserKey2, UserKey1};
-5. Management part 16bits
-   Time limit 2bits
-   00 no time limit.
-   01 Start time and end time limit  
-   Timers 2bits Range of value :00-FF
-   00 no timer limited.
-   01-FF ( 1-255)
-   Open mode 2bits
-   00 direct Open
-   01 Project No. +Room No. match to open the door.
-   02 The last 6 bits of MAC address match to open the door
-   03 The last 4 bits of MAC address match to open the door
-   Opening delay 4bits （FFFF: Max 65535 seconds）
-   0000 default
-   0012 18seconds
-   Opening delay: the relay controls the time of power failure or power on.
-
-Expanding second output 1bit
-0 No expansion, no second output, compatible with previous format
-1 the output of second channels (when the two dimensional code is used, the second output will
-act simultaneously with the first door lock)
-Extended Wigan output 1bit
-0 No extension, no output of Weigan output, compatible with previous format
-1 Output of Weigan output
-
-4 bits reserved for extension purposes
-
-6. the second output. 4bits
-   If the second output is enabled, the second output relay output delay time is 8 bits (if the extended second output is disable, this field does not exist).
-   0000 default
-   003C 60 second
-   Reserved 4 bits for extension
-
-7. Weigan number. 8bits
-   if you extend the output of Weigan output, Weigan number is 8 bits.
-   If the output of Weigan card is weigen 26, The highest two bits of the card series number is ‘00’
-
-8. the effective date of opening the door: the start date and the end date 24 bits
-   (if no time limit. Fill in 24 characters at will)
-   for example:160227101256160228101256  
-   The starting time of this two-dimensional code : 2016-02-27 10:12:56
-   The ending time of this two-dimensional code : 2016-02-28 10:12:56
-
-8．Combination of 6 rooms or MAC addresses
-There are two ways to open and match authentication:1) MAC，2)Project No. and Room No.，According to the situation, the two choose one.
-If the room authentication matching method is selected, the Room number of the equipment needs to be pre-set to the equipment.
-
-Project and room authentication method: 1) Number of rooms： 2bits
-02 There are 2 rooms
-2)Project No: 8bits
-00000000 default
-41590501 ProjectNo. 3) Room number combination 8bits\*N  
- 0302010103020102
-
-MAC authentication method: 1) Number of MACs： 2bits
-02 There are 2 devices’ MAC 2) MACs combination 6bits*N / 4bits*N
-030201030202
-
-```Java
+```java
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -462,3 +394,8 @@ public class XXTEACAI {
 
 
 ```
+
+## Todo List
+
+- [x] Translation
+- [] Remote Unlocking
